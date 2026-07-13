@@ -1,0 +1,103 @@
+import { useEffect } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { authService } from '../services/authService';
+import { useAuthStore } from '../../../store/authStore';
+
+export const useLogin = () => {
+    const { setUser, setLoading } = useAuthStore();
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: authService.login,
+        onSuccess: (data) => {
+            // Update Zustand store
+            setUser(data.data);
+            setLoading(false);
+
+            // Populate the React Query session cache with the authenticated user data
+            queryClient.setQueryData(['session'], { success: true, data: data.data });
+
+            toast.success('Welcome to PingLoop!');
+            navigate('/dashboard');
+        },
+        onError: (err: any) => {
+            const message = err.response?.data?.message || 'Invalid credentials';
+            toast.error(message);
+        }
+    });
+};
+
+export const useRegister = () => {
+    const { setUser, setLoading } = useAuthStore();
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: authService.register,
+        onSuccess: (data) => {
+            // Update Zustand store
+            setUser(data.data);
+            setLoading(false);
+
+            // Populate the React Query session cache with the registered user data
+            queryClient.setQueryData(['session'], { success: true, data: data.data });
+
+            toast.success('Registration successful! Welcome to PingLoop.');
+            navigate('/dashboard');
+        },
+        onError: (err: any) => {
+            const message = err.response?.data?.message || 'Registration failed';
+            toast.error(message);
+        }
+    });
+};
+
+export const useLogout = () => {
+    const { logout, setLoading } = useAuthStore();
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: authService.logout,
+        onSuccess: () => {
+            // Reset Zustand store
+            logout();
+            setLoading(true);
+
+            // Evict session query cache data
+            queryClient.removeQueries({ queryKey: ['session'] });
+
+            toast.success('Logged out successfully');
+            navigate('/login');
+        },
+        onError: () => {
+            toast.error('Logout failed');
+        }
+    });
+};
+
+export const useVerifySession = () => {
+    const { isLoading, setUser, setLoading } = useAuthStore();
+
+    const query = useQuery({
+        queryKey: ['session'],
+        queryFn: authService.getMe,
+        enabled: isLoading,
+        retry: false
+    });
+
+    useEffect(() => {
+        if (query.isSuccess && query.data) {
+            setUser(query.data.data);
+            setLoading(false);
+        } else if (query.isError) {
+            setUser(null);
+            setLoading(false);
+        }
+    }, [query.isSuccess, query.isError, query.data, setUser, setLoading]);
+
+    return query;
+};

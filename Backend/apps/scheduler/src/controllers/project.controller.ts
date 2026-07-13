@@ -1,9 +1,10 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import * as projectRepo from '../repositories/project.repository.js';
+import { createProjectSchema } from '../types/validation.types.js';
 
-export const createProject = async (req: Request, res: Response) => {
+export const createProject = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { name, description } = req.body;
+        const { name, description } = createProjectSchema.parse(req.body);
         const userId = req.userId;
 
         if (!userId) {
@@ -11,25 +12,19 @@ export const createProject = async (req: Request, res: Response) => {
             return;
         }
 
-        if (!name) {
-            res.status(400).json({ success: false, message: 'Project name is required' });
-            return;
-        }
-
         const project = await projectRepo.createProject({
             name,
-            description,
+            description: description ?? undefined,
             userId
         });
 
         res.status(201).json({ success: true, data: project });
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        res.status(500).json({ success: false, message });
+        next(err);
     }
 };
 
-export const getUserProjects = async (req: Request, res: Response) => {
+export const getUserProjects = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = req.userId;
 
@@ -41,12 +36,11 @@ export const getUserProjects = async (req: Request, res: Response) => {
         const projects = await projectRepo.findProjectsByUser(userId);
         res.status(200).json({ success: true, data: projects });
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        res.status(500).json({ success: false, message });
+        next(err);
     }
 };
 
-export const deleteProject = async (req: Request, res: Response) => {
+export const deleteProject = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { id } = req.params;
         const userId = req.userId;
@@ -70,7 +64,6 @@ export const deleteProject = async (req: Request, res: Response) => {
         await projectRepo.deleteProject(id as string);
         res.status(200).json({ success: true, message: 'Project deleted successfully' });
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        res.status(500).json({ success: false, message });
+        next(err);
     }
 };

@@ -5,13 +5,16 @@
     "main": "index.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
-        "dev": "tsx watch src/server.ts"
+        "dev": "tsx --conditions development watch src/server.ts",
+        "build": "tsc",
+        "start": "node dist/server.js"
     },
     "keywords": [],
     "author": "",
     "license": "ISC",
     "type": "module",
     "dependencies": {
+        "db": "*",
         "shared": "*",
         "bullmq": "^5.8.5",
         "cors": "^2.8.6",
@@ -19,7 +22,8 @@
         "express": "^5.2.1",
         "bcryptjs": "^2.4.3",
         "jsonwebtoken": "^9.0.2",
-        "cookie-parser": "^1.4.6"
+        "cookie-parser": "^1.4.6",
+        "zod": "^3.23.8"
     },
     "devDependencies": {
         "@types/cors": "^2.8.19",

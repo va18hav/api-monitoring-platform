@@ -1,7 +1,7 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { prisma } from 'db';
 
-export const getMonitorStats = async (req: Request, res: Response) => {
+export const getMonitorStats = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = req.userId;
 
@@ -33,17 +33,42 @@ export const getMonitorStats = async (req: Request, res: Response) => {
             ? Math.round(((totalChecks - failedChecks) / totalChecks) * 100) 
             : 100;
 
+        const recentEndpoints = await prisma.endpoint.findMany({
+            where: {
+                project: {
+                    userId
+                }
+            },
+            take: 5,
+            orderBy: {
+                updatedAt: 'desc'
+            },
+            select: {
+                id: true,
+                name: true,
+                url: true,
+                method: true,
+                interval: true,
+                status: true,
+                project: {
+                    select: {
+                        name: true
+                    }
+                }
+            }
+        });
+
         res.status(200).json({
             success: true,
             data: {
                 totalProjects,
                 totalEndpoints,
                 uptimePercentage,
-                totalAlerts: failedChecks
+                totalAlerts: failedChecks,
+                recentEndpoints
             }
         });
     } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        res.status(500).json({ success: false, message });
+        next(error);
     }
 };

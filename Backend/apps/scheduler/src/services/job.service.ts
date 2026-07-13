@@ -1,5 +1,6 @@
 import { ScheduleJobInput } from "../types/job.types.js";
 import { jobQueue } from '../lib/queue.js';
+import { prisma } from 'db';
 
 export const addScheduledJob = async (data: ScheduleJobInput) => {
     const repeatOpts = getRepeatOpts(data);
@@ -11,6 +12,7 @@ export const addScheduledJob = async (data: ScheduleJobInput) => {
         data.type,
         { payload: data.payload, isRecurring: true, userId: data.userId },
         {
+            jobId: data.payload?.endpointId ? `${data.type}_${data.payload.endpointId}` : undefined,
             repeat: repeatOpts,
             attempts: maxRetries + 1,
             backoff: {
@@ -50,3 +52,42 @@ export const getScheduledJobs = async () => {
 export const removeScheduledJob = async (key: string) => {
     return await jobQueue.removeRepeatableByKey(key);
 }
+
+export const syncDatabaseEndpointsWithQueue = async () => {
+    const endpoints = await prisma.endpoint.findMany({
+        include: {
+            project: {
+                select: {
+                    userId: true
+                }
+            }
+        }
+    });
+
+    const repeatableJobs = await jobQueue.getRepeatableJobs();
+    const repeatableKeys = new Set(repeatableJobs.map(job => job.key));
+
+    for (const endpoint of endpoints) {
+        if (!endpoint.repeatJobKey || !repeatableKeys.has(endpoint.repeatJobKey)) {
+            try {
+                // If it was already in Redis under the old format or missing, reschedule it
+                const scheduledJob = await addScheduledJob({
+                    type: 'ping_endpoint',
+                    payload: { endpointId: endpoint.id },
+                    schedule: 'every-x-minutes',
+                    minutes: endpoint.interval,
+                    userId: endpoint.project.userId
+                });
+
+                if (scheduledJob && scheduledJob.repeatJobKey) {
+                    await prisma.endpoint.update({
+                        where: { id: endpoint.id },
+                        data: { repeatJobKey: scheduledJob.repeatJobKey }
+                    });
+                }
+            } catch (err) {
+                console.error(`Failed to synchronize endpoint ${endpoint.id}:`, err);
+            }
+        }
+    }
+};

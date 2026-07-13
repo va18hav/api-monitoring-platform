@@ -1,13 +1,13 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { LoginPage } from './features/auth/pages/LoginPage';
 import { RegisterPage } from './features/auth/pages/RegisterPage';
 import { ProtectedRoute } from './shared/components/ProtectedRoute';
 import { AppLayout } from './shared/components/AppLayout';
-import { DashboardPage } from './features/monitors/pages/DashboardPage';
-import { MonitorsPage } from './features/monitors/pages/MonitorsPage';
-import { MonitorDetailPage } from './features/monitors/pages/MonitorDetailPage';
+import { DashboardPage } from './features/dashboard/pages/DashboardPage';
+import { ProjectsPage } from './features/projects/pages/ProjectsPage';
+import { ProjectDetailPage } from './features/projects/pages/ProjectDetailPage';
+import { MonitorDetailPage } from './features/monitor/pages/MonitorDetailPage';
 
 export default function App() {
     return (
@@ -24,7 +24,8 @@ export default function App() {
                 <Route element={<ProtectedRoute />}>
                     <Route element={<AppLayout />}>
                         <Route path="/dashboard" element={<DashboardPage />} />
-                        <Route path="/monitors" element={<MonitorsPage />} />
+                        <Route path="/projects" element={<ProjectsPage />} />
+                        <Route path="/projects/:id" element={<ProjectDetailPage />} />
                         <Route path="/monitors/:id" element={<MonitorDetailPage />} />
                         <Route path="/" element={<Navigate to="/dashboard" replace />} />
                     </Route>

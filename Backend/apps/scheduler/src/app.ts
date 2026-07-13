@@ -6,6 +6,7 @@ import authRoutes from './routes/auth.routes.js';
 import projectRoutes from './routes/project.routes.js';
 import endpointRoutes from './routes/endpoint.routes.js';
 import statsRoutes from './routes/stats.routes.js';
+import { errorHandler } from './middlewares/errorHandler.js';
 import { logger, register } from 'shared';
 import { randomUUID } from 'crypto';
 
@@ -31,7 +32,7 @@ app.use((req, res, next) => {
 
     // Scoped request logger
     req.log = logger.child({ requestId });
-    req.log.info({ method: req.method, url: req.url }, 'HTTP Request Started');
+    req.log?.info({ method: req.method, url: req.url }, 'HTTP Request Started');
 
     res.on('finish', () => {
         req.log?.info({ statusCode: res.statusCode }, 'HTTP Request Finished');
@@ -56,5 +57,8 @@ app.use('/auth', authRoutes)
 app.use('/project', projectRoutes)
 app.use('/endpoint', endpointRoutes)
 app.use('/stats', statsRoutes)
+
+// Global error handler
+app.use(errorHandler)
 
 export default app

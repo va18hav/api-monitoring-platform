@@ -1,10 +1,3 @@
-export interface Project {
-    id: string;
-    name: string;
-    description?: string;
-    createdAt: string;
-}
-
 export interface Endpoint {
     id: string;
     name: string;
@@ -24,11 +17,4 @@ export interface MonitorResponse {
     status: 'UP' | 'DOWN';
     error: string | null;
     createdAt: string;
-}
-
-export interface MonitorStats {
-    totalProjects: number;
-    totalEndpoints: number;
-    uptimePercentage: number;
-    totalAlerts: number;
 }

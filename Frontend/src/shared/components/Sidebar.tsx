@@ -1,23 +1,15 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Activity, LogOut, ShieldAlert } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
+import { LayoutDashboard, Folder, LogOut, Activity } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
-import { api } from '../services/api';
-import { toast } from 'sonner';
+import { useLogout } from '../../features/auth/hooks/useAuth';
 
 export const Sidebar: React.FC = () => {
-    const { user, logout } = useAuthStore();
-    const navigate = useNavigate();
+    const { user } = useAuthStore();
+    const logoutMutation = useLogout();
 
-    const handleLogout = async () => {
-        try {
-            await api.post('/auth/logout');
-            logout();
-            toast.success('Logged out successfully');
-            navigate('/login');
-        } catch (err) {
-            toast.error('Logout failed');
-        }
+    const handleLogout = () => {
+        logoutMutation.mutate();
     };
 
     const linkClasses = ({ isActive }: { isActive: boolean }) =>
@@ -32,8 +24,8 @@ export const Sidebar: React.FC = () => {
             {/* Header / Brand */}
             <div className="p-6 border-b border-slate-200">
                 <div className="flex items-center space-x-3 text-blue-600 font-bold text-lg font-mono">
-                    <ShieldAlert size={26} className="stroke-[2.5]" />
-                    <span>API GUARD</span>
+                    <Activity size={26} className="stroke-[2.5]" />
+                    <span>PingLoop</span>
                 </div>
                 <div className="text-slate-400 text-xs mt-1 uppercase font-semibold tracking-wider font-mono">
                     Distributed Uptime
@@ -46,9 +38,9 @@ export const Sidebar: React.FC = () => {
                     <LayoutDashboard size={20} />
                     <span>Dashboard</span>
                 </NavLink>
-                <NavLink to="/monitors" className={linkClasses}>
-                    <Activity size={20} />
-                    <span>Endpoints</span>
+                <NavLink to="/projects" className={linkClasses}>
+                    <Folder size={20} />
+                    <span>Projects</span>
                 </NavLink>
             </nav>
 

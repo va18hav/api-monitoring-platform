@@ -1,21 +1,17 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import * as endpointRepo from '../repositories/endpoint.repository.js';
 import * as projectRepo from '../repositories/project.repository.js';
 import * as jobService from '../services/job.service.js';
 import { prisma } from 'db';
+import { createEndpointSchema } from '../types/validation.types.js';
 
-export const createEndpoint = async (req: Request, res: Response) => {
+export const createEndpoint = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { name, url, interval, projectId } = req.body;
+        const { name, url, interval, projectId } = createEndpointSchema.parse(req.body);
         const userId = req.userId;
 
         if (!userId) {
             res.status(401).json({ success: false, message: 'Unauthorized' });
-            return;
-        }
-
-        if (!name || !url || !interval || !projectId) {
-            res.status(400).json({ success: false, message: 'Name, URL, Interval, and Project ID are required' });
             return;
         }
 
@@ -34,7 +30,7 @@ export const createEndpoint = async (req: Request, res: Response) => {
         const endpoint = await endpointRepo.createEndpoint({
             name,
             url,
-            interval: parseInt(interval, 10),
+            interval,
             projectId
         });
 
@@ -43,7 +39,7 @@ export const createEndpoint = async (req: Request, res: Response) => {
             type: 'ping_endpoint',
             payload: { endpointId: endpoint.id },
             schedule: 'every-x-minutes',
-            minutes: parseInt(interval, 10),
+            minutes: interval,
             userId
         });
 
@@ -62,12 +58,11 @@ export const createEndpoint = async (req: Request, res: Response) => {
             } 
         });
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        res.status(500).json({ success: false, message });
+        next(err);
     }
 };
 
-export const getProjectEndpoints = async (req: Request, res: Response) => {
+export const getProjectEndpoints = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { projectId } = req.params;
         const userId = req.userId;
@@ -91,12 +86,11 @@ export const getProjectEndpoints = async (req: Request, res: Response) => {
         const endpoints = await endpointRepo.findEndpointsByProject(projectId as string);
         res.status(200).json({ success: true, data: endpoints });
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        res.status(500).json({ success: false, message });
+        next(err);
     }
 };
 
-export const deleteEndpoint = async (req: Request, res: Response) => {
+export const deleteEndpoint = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { id } = req.params;
         const userId = req.userId;
@@ -126,12 +120,11 @@ export const deleteEndpoint = async (req: Request, res: Response) => {
         await endpointRepo.deleteEndpoint(id as string);
         res.status(200).json({ success: true, message: 'Endpoint deleted successfully' });
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        res.status(500).json({ success: false, message });
+        next(err);
     }
 };
 
-export const getEndpointResponses = async (req: Request, res: Response) => {
+export const getEndpointResponses = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { id } = req.params;
         const userId = req.userId;
@@ -160,12 +153,11 @@ export const getEndpointResponses = async (req: Request, res: Response) => {
 
         res.status(200).json({ success: true, data: responses });
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        res.status(500).json({ success: false, message });
+        next(err);
     }
 };
 
-export const getEndpointDetails = async (req: Request, res: Response) => {
+export const getEndpointDetails = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { id } = req.params;
         const userId = req.userId;
@@ -188,7 +180,6 @@ export const getEndpointDetails = async (req: Request, res: Response) => {
 
         res.status(200).json({ success: true, data: endpoint });
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        res.status(500).json({ success: false, message });
+        next(err);
     }
 };

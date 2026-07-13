@@ -5,6 +5,8 @@ export const createResponse = async (data: {
     statusCode?: number | null;
     responseTime?: number | null;
     status: 'UP' | 'DOWN';
+    responseBody?: string | null;
+    responseHeaders?: any;
     error?: string | null;
 }) => {
     return await prisma.response.create({

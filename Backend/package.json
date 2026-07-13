@@ -5,9 +5,16 @@
         "apps/*",
         "packages/*"
     ],
+    "scripts": {
+        "build": "npm run build -w packages/shared && npm run build -w packages/db && npm run build -w apps/scheduler && npm run build -w apps/worker"
+    },
     "devDependencies": {
+        "@jest/globals": "^30.4.1",
+        "@types/jest": "^30.0.0",
         "@types/node": "^26.1.0",
+        "jest": "^30.4.2",
         "prisma": "^7.8.0",
+        "ts-jest": "^29.4.11",
         "tsx": "^4.23.0",
         "typescript": "^6.0.3"
     }

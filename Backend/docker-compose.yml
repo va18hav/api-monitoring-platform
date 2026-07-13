@@ -1,3 +1,5 @@
+name: pingloop-local
+
 services:
   postgres_db:
     image: postgres:16-alpine
@@ -6,16 +8,67 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: scheduler
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d scheduler"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres_db:5432/scheduler
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=local-development-secret-key-12345
+      - NODE_ENV=production
+      - PORT=3000
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh -c "npx prisma db push --accept-data-loss --schema=packages/db/prisma/schema.prisma --url=$$DATABASE_URL && npm run start -w apps/scheduler"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres_db:5432/scheduler
+      - REDIS_URL=redis://redis:6379
+      - NODE_ENV=production
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: npm run start -w apps/worker
     restart: unless-stopped
 
 volumes:
   postgres_data:
+  redis_data:
