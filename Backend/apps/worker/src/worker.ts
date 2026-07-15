@@ -18,7 +18,8 @@ export const startWorker = async () => {
                     port: parsed.port ? parseInt(parsed.port, 10) : 6379,
                     username: parsed.username ? decodeURIComponent(parsed.username) : undefined,
                     password: parsed.password ? decodeURIComponent(parsed.password) : undefined,
-                    tls: parsed.protocol === 'rediss:' ? {} : undefined
+                    tls: parsed.protocol === 'rediss:' ? {} : undefined,
+                    enableOfflineQueue: false
                 };
             } catch (err) {
                 // Fallback in case of parsing issue
@@ -28,6 +29,7 @@ export const startWorker = async () => {
         return {
             host: process.env.REDIS_HOST || 'localhost',
             port: parseInt(process.env.REDIS_PORT || '6379', 10),
+            enableOfflineQueue: false
         };
     };
 

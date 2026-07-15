@@ -90,10 +90,8 @@ export class CookieJar {
     }
 
     private addCookie(newCookie: Cookie) {
-        // Remove existing cookie with same name, domain, path to prevent duplicates
-        this.cookies = this.cookies.filter(c => 
-            !(c.name === newCookie.name && c.domain === newCookie.domain && c.path === newCookie.path)
-        );
+        // Remove any existing cookie with the same name to prevent duplicate older sessions from persisting
+        this.cookies = this.cookies.filter(c => c.name !== newCookie.name);
 
         // If it is expired or max-age is <= 0 (e.g. deletion command), do not add it
         const now = Date.now();

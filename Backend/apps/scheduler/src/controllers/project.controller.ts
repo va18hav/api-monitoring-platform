@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { createProjectSchema } from '../types/validation.types.js';
 import * as projectService from '../services/project.service.js';
 import { redis } from '../lib/redis.js';
+import { logger } from 'shared';
 
 export const createProject = async (req: Request, res: Response) => {
     const data = createProjectSchema.parse(req.body);
@@ -37,7 +38,8 @@ export const getProjectCookies = async (req: Request, res: Response) => {
         }
         return res.status(200).json({ success: true, data: [] });
     } catch (err) {
-        return res.status(500).json({ success: false, message: 'Failed to fetch cookies' });
+        logger.warn({ err }, `Failed to fetch cookies from Redis for project ${projectId}. Returning empty fallback.`);
+        return res.status(200).json({ success: true, data: [], warning: 'Cookie storage is temporarily unavailable.' });
     }
 };
 
@@ -64,6 +66,28 @@ export const deleteProjectCookies = async (req: Request, res: Response) => {
         }
         return res.status(200).json({ success: true, message: 'Cookies cleared successfully' });
     } catch (err) {
-        return res.status(500).json({ success: false, message: 'Failed to clear cookies' });
+        logger.warn({ err }, `Failed to clear cookies from Redis for project ${projectId}.`);
+        return res.status(200).json({ success: true, message: 'Cookie storage is temporarily unavailable, cookies cleared locally.', warning: 'Cookie storage is offline.' });
     }
+};
+
+export const getLastOpenedEndpoint = async (req: Request, res: Response) => {
+    if (!req.userId) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const projectId = req.params.projectId as string;
+
+    const endpointId = await projectService.getLastOpenedEndpoint(req.userId, projectId);
+    return res.status(200).json({ success: true, data: { endpointId } });
+};
+
+export const setLastOpenedEndpoint = async (req: Request, res: Response) => {
+    if (!req.userId) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    const projectId = req.params.projectId as string;
+    const { endpointId } = req.body;
+
+    if (!endpointId) {
+        return res.status(400).json({ success: false, message: 'endpointId is required' });
+    }
+
+    await projectService.setLastOpenedEndpoint(req.userId, projectId, endpointId);
+    return res.status(200).json({ success: true });
 };

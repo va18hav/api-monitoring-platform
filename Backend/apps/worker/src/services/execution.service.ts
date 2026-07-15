@@ -7,6 +7,7 @@ import { logger } from 'shared';
 import { redis } from "../lib/redis.js";
 import { CookieJar } from "../utils/cookieJar.js";
 import { applyAuth } from "../utils/auth.registry.js";
+import { prisma } from 'db';
 
 interface ExecutionJob {
     id: string;
@@ -14,6 +15,49 @@ interface ExecutionJob {
     payload: any;
     userId?: string;
 }
+
+const performAutoLogin = async (endpointId: string, loginConfig: any, cookieKey: string, cookieJar: CookieJar) => {
+    logger.info({ endpointId }, `Auto-login triggered for monitored endpoint.`);
+    try {
+        const loginHeaders = buildHeaders(loginConfig.headers, null, loginConfig.body);
+        const loginOptions: RequestInit = {
+            method: loginConfig.method || 'POST',
+            headers: loginHeaders,
+        };
+        if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(loginConfig.method || 'POST') && loginConfig.body) {
+            loginOptions.body = loginConfig.body;
+        }
+
+        const loginStart = Date.now();
+        const loginRes = await fetch(loginConfig.url, loginOptions);
+        const loginTime = Date.now() - loginStart;
+
+        if (loginRes.ok) {
+            const loginSetCookie = loginRes.headers.getSetCookie ? loginRes.headers.getSetCookie() : (loginRes.headers.get('set-cookie') || null);
+            if (loginSetCookie) {
+                cookieJar.setCookies(loginSetCookie, loginConfig.url);
+                const serialized = JSON.stringify(cookieJar.toJSON());
+                const earliestExpiry = cookieJar.getEarliestExpiry();
+                if (earliestExpiry) {
+                    const ttlMs = Math.max(earliestExpiry - Date.now(), 0);
+                    const ttlSec = Math.max(Math.ceil(ttlMs / 1000), 60);
+                    await redis.set(cookieKey, serialized, 'EX', ttlSec);
+                } else {
+                    await redis.set(cookieKey, serialized, 'EX', 24 * 60 * 60);
+                }
+                logger.info({ endpointId, loginTime }, "Auto-login successful, session cookies refreshed in Redis.");
+                return true;
+            } else {
+                logger.warn({ endpointId }, "Auto-login response did not contain Set-Cookie header.");
+            }
+        } else {
+            logger.error({ endpointId, status: loginRes.status }, "Auto-login failed with non-OK HTTP status.");
+        }
+    } catch (loginErr) {
+        logger.error({ endpointId, err: loginErr }, "Auto-login execution encountered an error.");
+    }
+    return false;
+};
 
 const handlePingEndpointJob = async (job: ExecutionJob) => {
     const endpointId = job.payload?.endpointId;
@@ -29,6 +73,9 @@ const handlePingEndpointJob = async (job: ExecutionJob) => {
         logger.warn({ jobId: job.id, endpointId }, `Endpoint not found in database. Skipping execution.`);
         return;
     }
+
+    const monitor = monitorId ? await prisma.monitor.findUnique({ where: { id: monitorId } }) : null;
+    const interval = monitor?.interval || 5; // Default check interval in minutes
 
     // Resolve Redis Cookie Jar Key
     const isTest = !!job.payload?.isTest;
@@ -48,6 +95,35 @@ const handlePingEndpointJob = async (job: ExecutionJob) => {
     }
     const cookieJar = new CookieJar(initialCookies);
 
+    // Get Auth configuration
+    const auth = endpoint.auth as any;
+    const hasAutoLogin = auth && 
+        auth.type === 'cookie' && 
+        auth.loginConfig && 
+        typeof auth.loginConfig.url === 'string' && 
+        auth.loginConfig.url.trim() !== '' && 
+        typeof auth.loginConfig.body === 'string' && 
+        auth.loginConfig.body.trim() !== '';
+
+    let loginAttempted = false;
+
+    // Pre-request check: if scheduled and cookie is expired/expiring, perform auto-login first
+    if (!isTest && hasAutoLogin) {
+        let ttl = -1;
+        try {
+            ttl = await redis.ttl(cookieKey);
+        } catch (err) {
+            logger.error({ jobId: job.id, err }, "Failed to get cookie TTL from Redis");
+        }
+
+        const threshold = interval * 60 * 2; // Threshold: double the check interval in seconds
+        if (ttl < threshold) {
+            logger.info({ endpointId: endpoint.id, ttl }, `Monitor session cookies are expired or expiring. Refreshing...`);
+            loginAttempted = true;
+            await performAutoLogin(endpoint.id, auth.loginConfig, cookieKey, cookieJar);
+        }
+    }
+
     const start = Date.now();
     let statusCode: number | null = null;
     let responseTime: number | null = null;
@@ -55,6 +131,7 @@ const handlePingEndpointJob = async (job: ExecutionJob) => {
     let errorMsg: string | null = null;
     let responseBody: string | null = null;
     let responseHeaders: Record<string, string> | null = null;
+    let sessionRefreshed = false;
 
     // Build URL & Headers (excluding auth)
     let url = buildUrlWithParams(endpoint.url, endpoint.queryParams);
@@ -85,18 +162,41 @@ const handlePingEndpointJob = async (job: ExecutionJob) => {
         const timeoutId = setTimeout(() => controller.abort(), 10000);
         requestOptions.signal = controller.signal;
 
-        const res = await fetch(url, requestOptions);
+        let res = await fetch(url, requestOptions);
         clearTimeout(timeoutId);
         
         statusCode = res.status;
         responseTime = Date.now() - start;
         responseHeaders = parseResponseHeaders(res.headers);
 
+        // Check for 401 error and trigger lazy self-healing login
+        if (statusCode === 401 && hasAutoLogin && !loginAttempted) {
+            loginAttempted = true;
+            logger.info({ endpointId: endpoint.id }, `API returned 401 Unauthorized. Triggering self-healing login retry...`);
+            const loginSuccess = await performAutoLogin(endpoint.id, auth.loginConfig, cookieKey, cookieJar);
+            if (loginSuccess) {
+                sessionRefreshed = true;
+                // Retry the original request with refreshed cookies
+                const retryHeaders = { ...headers };
+                const activeCookiesRetry = cookieJar.getCookieString(url);
+                if (activeCookiesRetry) {
+                    retryHeaders['Cookie'] = activeCookiesRetry;
+                }
+                
+                const retryStart = Date.now();
+                const retryRes = await fetch(url, { ...requestOptions, headers: retryHeaders });
+                res = retryRes;
+                statusCode = retryRes.status;
+                responseTime = Date.now() - retryStart;
+                responseHeaders = parseResponseHeaders(retryRes.headers);
+            }
+        }
+
         if (res.ok) {
             status = 'UP';
         } else {
             status = 'DOWN';
-            errorMsg = `HTTP Error Status: ${res.status}`;
+            errorMsg = `HTTP Error Status: ${statusCode}`;
         }
 
         const rawBody = await res.text();
@@ -137,7 +237,8 @@ const handlePingEndpointJob = async (job: ExecutionJob) => {
         status,
         responseBody,
         responseHeaders,
-        error: errorMsg
+        error: errorMsg,
+        cookiesRefreshed: sessionRefreshed
     };
 
     // Always log response in database (for both tests and scheduled monitors)

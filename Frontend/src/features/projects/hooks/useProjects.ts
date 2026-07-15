@@ -134,3 +134,22 @@ export const useDeleteProjectCookie = (projectId: string) => {
         }
     });
 };
+
+export const useGetLastOpenedEndpoint = (projectId: string) => {
+    return useQuery({
+        queryKey: ['last-opened', projectId],
+        queryFn: () => projectService.getLastOpenedEndpoint(projectId),
+        enabled: !!projectId,
+        staleTime: 0 // Fetch fresh state every time
+    });
+};
+
+export const useSetLastOpenedEndpoint = (projectId: string) => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (endpointId: string) => projectService.setLastOpenedEndpoint(projectId, endpointId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['last-opened', projectId] });
+        }
+    });
+};

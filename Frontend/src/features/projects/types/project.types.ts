@@ -29,4 +29,5 @@ export interface TestEndpointResponse {
     responseBody: string | null;
     responseHeaders: Record<string, string> | null;
     error: string | null;
+    cookiesRefreshed?: boolean;
 }

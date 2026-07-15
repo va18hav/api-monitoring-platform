@@ -7,6 +7,8 @@ export interface Endpoint {
     status: string; // 'UP' | 'DOWN' | 'PENDING'
     projectId: string;
     createdAt: string;
+    auth?: any;
+    monitors?: Array<{ id: string; interval: number; status: string }>;
 }
 
 export interface MonitorResponse {

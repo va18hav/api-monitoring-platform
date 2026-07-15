@@ -115,7 +115,7 @@ describe('Scheduler Job Service - Queue Scheduling & Sync', () => {
             // Assert: Job rescheduled with unique jobId
             expect(jobQueue.add).toHaveBeenCalledWith(
                 'ping_endpoint',
-                { payload: { endpointId: 'endpoint-abc' }, isRecurring: true, userId: 'user-789' },
+                { payload: { endpointId: 'endpoint-abc', monitorId: 'monitor-abc' }, isRecurring: true, userId: 'user-789' },
                 expect.objectContaining({
                     jobId: 'ping_endpoint_endpoint-abc',
                     repeat: { every: 2 * 60 * 1000 }

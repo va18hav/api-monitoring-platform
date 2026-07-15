@@ -19,5 +19,20 @@ export const monitorService = {
 
     deleteMonitor: async (id: string): Promise<void> => {
         await api.delete(`/monitor/${id}`);
+    },
+
+    getMonitorAuthStatus: async (monitorId: string): Promise<{ status: 'valid' | 'expiring' | 'expired' | 'none', ttl: number, interval: number }> => {
+        const res = await api.get<{ data: { status: 'valid' | 'expiring' | 'expired' | 'none', ttl: number, interval: number } }>(`/monitor/${monitorId}/auth-status`);
+        return res.data.data;
+    },
+
+    syncMonitorSession: async (monitorId: string): Promise<any> => {
+        const res = await api.post(`/monitor/${monitorId}/sync-session`);
+        return res.data;
+    },
+
+    updateMonitor: async (data: { monitorId: string; interval: number }): Promise<any> => {
+        const res = await api.patch(`/monitor/${data.monitorId}`, { interval: data.interval });
+        return res.data;
     }
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { 
     LayoutDashboard, 
@@ -295,6 +295,25 @@ const ExplorerTree: React.FC<ExplorerTreeProps> = ({
     );
 };
 
+// Helper to check recursively if a folder contains the selected endpoint
+const folderContainsEndpoint = (folderId: string, endpoints: Endpoint[], folders: Folder[], targetEndpointId: string | null): boolean => {
+    if (!targetEndpointId) return false;
+    
+    // Direct match
+    const hasDirectEndpoint = endpoints.some(e => e.id === targetEndpointId && e.folderId === folderId);
+    if (hasDirectEndpoint) return true;
+    
+    // Subfolders search
+    const subfolders = folders.filter(f => f.parentId === folderId);
+    for (const subfolder of subfolders) {
+        if (folderContainsEndpoint(subfolder.id, endpoints, folders, targetEndpointId)) {
+            return true;
+        }
+    }
+    
+    return false;
+};
+
 // Folder Node Node component
 interface FolderNodeProps {
     folder: Folder;
@@ -322,6 +341,14 @@ const FolderNode: React.FC<FolderNodeProps> = ({
     onDeleteEndpoint
 }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const containsSelected = folderContainsEndpoint(folder.id, endpoints, folders, selectedEndpointId);
+
+    // Expand folder automatically if it contains the selected endpoint
+    useEffect(() => {
+        if (containsSelected) {
+            setIsOpen(true);
+        }
+    }, [containsSelected]);
 
     return (
         <div className="space-y-0.5 animate-fade-in">

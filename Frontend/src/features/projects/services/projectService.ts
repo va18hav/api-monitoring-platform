@@ -69,5 +69,14 @@ export const projectService = {
         await api.delete(`/project/${projectId}/cookies`, {
             params: name ? { name } : undefined
         });
+    },
+
+    getLastOpenedEndpoint: async (projectId: string): Promise<string | null> => {
+        const res = await api.get<{ data: { endpointId: string | null } }>(`/project/${projectId}/last-opened`);
+        return res.data.data.endpointId;
+    },
+
+    setLastOpenedEndpoint: async (projectId: string, endpointId: string): Promise<void> => {
+        await api.post(`/project/${projectId}/last-opened`, { endpointId });
     }
 };

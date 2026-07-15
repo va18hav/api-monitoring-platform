@@ -46,7 +46,16 @@ export const createEndpointSchema = z.object({
     z.object({ type: z.literal('none') }),
     z.object({ type: z.literal('bearer'), token: z.string().max(5000, 'Token too long') }),
     z.object({ type: z.literal('basic'), username: z.string().max(500), password: z.string().max(500) }),
-    z.object({ type: z.literal('apiKey'), key: z.string().max(200), value: z.string().max(5000), in: z.enum(['header', 'query']) })
+    z.object({ type: z.literal('apiKey'), key: z.string().max(200), value: z.string().max(5000), in: z.enum(['header', 'query']) }),
+    z.object({
+      type: z.literal('cookie'),
+      loginConfig: z.object({
+        url: z.string().max(2048).optional().nullable().or(z.literal('')),
+        method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']).optional(),
+        headers: z.record(z.string().max(1000)).optional().nullable(),
+        body: z.string().max(100000).optional().nullable()
+      }).optional().nullable()
+    })
   ]).optional().nullable(),
 });
 
@@ -67,7 +76,16 @@ export const updateEndpointSchema = z.object({
       z.object({ type: z.literal('none') }),
       z.object({ type: z.literal('bearer'), token: z.string().max(5000, 'Token too long') }),
       z.object({ type: z.literal('basic'), username: z.string().max(500), password: z.string().max(500) }),
-      z.object({ type: z.literal('apiKey'), key: z.string().max(200), value: z.string().max(5000), in: z.enum(['header', 'query']) })
+      z.object({ type: z.literal('apiKey'), key: z.string().max(200), value: z.string().max(5000), in: z.enum(['header', 'query']) }),
+      z.object({
+        type: z.literal('cookie'),
+        loginConfig: z.object({
+          url: z.string().max(2048).optional().nullable().or(z.literal('')),
+          method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']).optional(),
+          headers: z.record(z.string().max(1000)).optional().nullable(),
+          body: z.string().max(100000).optional().nullable()
+        }).optional().nullable()
+      })
     ]),
     z.null()
   ]).optional(),

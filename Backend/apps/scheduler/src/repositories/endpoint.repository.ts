@@ -38,6 +38,12 @@ export const createEndpoint = async (data: {
 export const findEndpointsByProject = async (projectId: string) => {
     return await prisma.endpoint.findMany({
         where: { projectId },
+        include: {
+            monitors: {
+                orderBy: { createdAt: 'desc' },
+                take: 1
+            }
+        },
         orderBy: { createdAt: 'desc' }
     });
 };

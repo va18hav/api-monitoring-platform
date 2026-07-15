@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Play, Save, Trash2, Terminal, Cookie, Clock, X } from 'lucide-react';
+import { Play, Save, Trash2, Terminal, Cookie, Clock, X, Activity } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { JSONCodeEditor } from '../../../shared/components/JSONCodeEditor';
 import { useUpdateEndpoint, useTestEndpoint, useGetProjectCookies, useDeleteProjectCookie } from '../hooks/useProjects';
 import { useCreateMonitor, useDeleteMonitor, useGetResponses } from '../../monitor/hooks/useMonitor';
 import type { Endpoint, TestEndpointResponse } from '../types/project.types';
@@ -28,7 +30,7 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ endpoint, projectId 
     const [headers, setHeaders] = useState<KeyValueItem[]>([]);
 
     // Auth states
-    const [authType, setAuthType] = useState<'none' | 'bearer' | 'basic' | 'apiKey'>('none');
+    const [authType, setAuthType] = useState<'none' | 'bearer' | 'basic' | 'apiKey' | 'cookie'>('none');
     const [authToken, setAuthToken] = useState('');
     const [authUsername, setAuthUsername] = useState('');
     const [authPassword, setAuthPassword] = useState('');
@@ -36,8 +38,17 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ endpoint, projectId 
     const [authVal, setAuthVal] = useState('');
     const [authIn, setAuthIn] = useState<'header' | 'query'>('header');
 
+    // Auto-login config states
+    const [loginUrl, setLoginUrl] = useState('');
+    const [loginMethod, setLoginMethod] = useState('POST');
+    const [loginHeaders, setLoginHeaders] = useState('{\n  "Content-Type": "application/json"\n}');
+    const [loginBody, setLoginBody] = useState('');
+
+    const navigate = useNavigate();
+
     // Body state
     const [body, setBody] = useState(endpoint.body || '');
+    const [bodyType, setBodyType] = useState<'none' | 'json' | 'text'>('none');
 
     const activeMonitor = endpoint.monitors?.[0];
 
@@ -83,6 +94,18 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ endpoint, projectId 
         setBody(endpoint.body || '');
         setTestResult(null);
 
+        // Auto-detect body type
+        if (!endpoint.body) {
+            setBodyType('none');
+        } else {
+            try {
+                JSON.parse(endpoint.body);
+                setBodyType('json');
+            } catch {
+                setBodyType('text');
+            }
+        }
+
         // Load Headers
         const initialHeaders: KeyValueItem[] = [];
         if (endpoint.headers && typeof endpoint.headers === 'object') {
@@ -117,10 +140,26 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ endpoint, projectId 
                 setAuthVal(auth.value || '');
                 setAuthIn(auth.in || 'header');
             }
+            if (auth.type === 'cookie') {
+                const loginConfig = auth.loginConfig || {};
+                setLoginUrl(loginConfig.url || '');
+                setLoginMethod(loginConfig.method || 'POST');
+                setLoginHeaders(loginConfig.headers ? JSON.stringify(loginConfig.headers, null, 2) : '{\n  "Content-Type": "application/json"\n}');
+                setLoginBody(loginConfig.body || '');
+            } else {
+                setLoginUrl('');
+                setLoginMethod('POST');
+                setLoginHeaders('{\n  "Content-Type": "application/json"\n}');
+                setLoginBody('');
+            }
         } else {
             setAuthType('none');
+            setLoginUrl('');
+            setLoginMethod('POST');
+            setLoginHeaders('{\n  "Content-Type": "application/json"\n}');
+            setLoginBody('');
         }
-    }, [endpoint]);
+    }, [endpoint.id]);
 
     // Handle URL Parsing to sync with Params table
     const handleUrlChange = (newUrl: string) => {
@@ -219,6 +258,22 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ endpoint, projectId 
             authPayload = { type: 'basic', username: authUsername, password: authPassword };
         } else if (authType === 'apiKey' && authKey) {
             authPayload = { type: 'apiKey', key: authKey, value: authVal, in: authIn };
+        } else if (authType === 'cookie') {
+            let headersObj = {};
+            try {
+                headersObj = JSON.parse(loginHeaders);
+            } catch {
+                headersObj = { "Content-Type": "application/json" };
+            }
+            authPayload = {
+                type: 'cookie',
+                loginConfig: {
+                    url: loginUrl,
+                    method: loginMethod,
+                    headers: headersObj,
+                    body: loginBody
+                }
+            };
         } else if (authType === 'none') {
             authPayload = { type: 'none' };
         }
@@ -226,7 +281,7 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ endpoint, projectId 
         return {
             method,
             url,
-            body: body || null,
+            body: bodyType === 'none' ? null : (body || null),
             headers: Object.keys(headersRecord).length > 0 ? headersRecord : null,
             queryParams: Object.keys(paramsRecord).length > 0 ? paramsRecord : null,
             auth: authPayload
@@ -256,6 +311,9 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ endpoint, projectId 
                         onSuccess: (data) => {
                             console.log("Test execution completed. Response:", data);
                             setTestResult(data);
+                            if (data?.cookiesRefreshed) {
+                                toast.success("Session expired. Generated a new one successfully!");
+                            }
                             queryClient.invalidateQueries({ queryKey: ['responses', endpoint.id] });
                         }
                     });
@@ -341,19 +399,6 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ endpoint, projectId 
                         <Cookie size={14} />
                         <span>Cookies</span>
                     </button>
-
-                    <button
-                        onClick={() => setIsScheduleModalOpen(true)}
-                        className={`px-4 py-3 border rounded-xl text-sm font-semibold flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer ${
-                            activeMonitor
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100/50 font-bold'
-                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                        }`}
-                        title="Configure check schedule"
-                    >
-                        <Clock size={14} />
-                        <span>{activeMonitor ? 'Scheduled' : 'Schedule'}</span>
-                    </button>
                 </div>
             </div>
 
@@ -396,25 +441,51 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ endpoint, projectId 
                         />
                     )}
 
-                    {/* Tab 3: Auth */}
                     {activeTab === 'auth' && (
-                        <div className="space-y-4 max-w-md">
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Auth Type</label>
-                                <select
-                                    value={authType}
-                                    onChange={(e) => setAuthType(e.target.value as any)}
-                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500"
-                                >
-                                    <option value="none">No Auth</option>
-                                    <option value="bearer">Bearer Token</option>
-                                    <option value="basic">Basic Auth</option>
-                                    <option value="apiKey">API Key</option>
-                                </select>
+                        <div className="space-y-4 w-full">
+                            <div className="flex flex-col md:flex-row md:items-end gap-4 w-full">
+                                <div className="space-y-1 w-full md:w-[35%] shrink-0">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Auth Type</label>
+                                    <select
+                                        value={authType}
+                                        onChange={(e) => setAuthType(e.target.value as any)}
+                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 font-semibold cursor-pointer text-slate-700 bg-white"
+                                    >
+                                        <option value="none">No Auth</option>
+                                        <option value="bearer">Bearer Token</option>
+                                        <option value="basic">Basic Auth</option>
+                                        <option value="apiKey">API Key</option>
+                                        <option value="cookie">Cookie-Based Auth (Session)</option>
+                                    </select>
+                                </div>
+
+                                {authType === 'cookie' && (
+                                    <div className="space-y-1 flex-1 animate-fade-in">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Login URL</label>
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={loginMethod}
+                                                onChange={(e) => setLoginMethod(e.target.value)}
+                                                className="px-2 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 font-bold focus:outline-none focus:border-blue-500 cursor-pointer"
+                                            >
+                                                <option value="POST">POST</option>
+                                                <option value="GET">GET</option>
+                                                <option value="PUT">PUT</option>
+                                            </select>
+                                            <input
+                                                type="text"
+                                                value={loginUrl}
+                                                onChange={(e) => setLoginUrl(e.target.value)}
+                                                placeholder="https://api.example.com/auth/login"
+                                                className="flex-1 px-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 font-mono"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {authType === 'bearer' && (
-                                <div className="space-y-1 animate-fade-in">
+                                <div className="space-y-1 max-w-md animate-fade-in">
                                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Token</label>
                                     <input
                                         type="text"
@@ -427,7 +498,7 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ endpoint, projectId 
                             )}
 
                             {authType === 'basic' && (
-                                <div className="space-y-3 animate-fade-in">
+                                <div className="grid grid-cols-2 gap-4 max-w-xl animate-fade-in text-slate-700">
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Username</label>
                                         <input
@@ -451,36 +522,46 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ endpoint, projectId 
                                 </div>
                             )}
 
+                            {authType === 'cookie' && (
+                                <div className="space-y-1.5 w-full border-t border-slate-100 pt-3 animate-fade-in text-slate-700">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Login Body (JSON)</label>
+                                    <JSONCodeEditor
+                                        value={loginBody}
+                                        onChange={setLoginBody}
+                                        placeholder=""
+                                        rows={4}
+                                    />
+                                </div>
+                            )}
+
                             {authType === 'apiKey' && (
-                                <div className="space-y-3 animate-fade-in">
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Key</label>
-                                            <input
-                                                type="text"
-                                                value={authKey}
-                                                onChange={(e) => setAuthKey(e.target.value)}
-                                                placeholder="X-API-Key"
-                                                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Value</label>
-                                            <input
-                                                type="text"
-                                                value={authVal}
-                                                onChange={(e) => setAuthVal(e.target.value)}
-                                                placeholder="Key value"
-                                                className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500"
-                                            />
-                                        </div>
+                                <div className="grid grid-cols-3 gap-3 max-w-2xl animate-fade-in text-slate-700">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Key</label>
+                                        <input
+                                            type="text"
+                                            value={authKey}
+                                            onChange={(e) => setAuthKey(e.target.value)}
+                                            placeholder="X-API-Key"
+                                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 font-mono"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Value</label>
+                                        <input
+                                            type="text"
+                                            value={authVal}
+                                            onChange={(e) => setAuthVal(e.target.value)}
+                                            placeholder="Key value"
+                                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 font-mono"
+                                        />
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Add To</label>
                                         <select
                                             value={authIn}
                                             onChange={(e) => setAuthIn(e.target.value as any)}
-                                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500"
+                                            className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 cursor-pointer"
                                         >
                                             <option value="header">Header</option>
                                             <option value="query">Query Params</option>
@@ -493,16 +574,60 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ endpoint, projectId 
 
                     {/* Tab 4: Body */}
                     {activeTab === 'body' && (
-                        <div className="space-y-2 h-full flex flex-col">
-                            <div className="flex items-center space-x-2 text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">
-                                <span>Raw request Body (JSON)</span>
+                        <div className="space-y-4 h-full flex flex-col min-h-[180px]">
+                            {/* Body Type Selector Radio Row */}
+                            <div className="flex items-center space-x-5 border-b border-slate-100 pb-3 shrink-0">
+                                {(['none', 'json', 'text'] as const).map(type => (
+                                    <label key={type} className="flex items-center space-x-1.5 cursor-pointer text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors select-none">
+                                        <input
+                                            type="radio"
+                                            name="bodyType"
+                                            checked={bodyType === type}
+                                            onChange={() => {
+                                                setBodyType(type);
+                                                if (type === 'json' && !body) {
+                                                    setBody('');
+                                                } else if (type === 'none') {
+                                                    setBody('');
+                                                }
+                                            }}
+                                            className="cursor-pointer h-3.5 w-3.5 text-blue-600 focus:ring-blue-500 border-slate-300"
+                                        />
+                                        <span className="capitalize">
+                                            {type === 'none' ? 'None' : type === 'json' ? 'JSON (raw)' : 'Text (raw)'}
+                                        </span>
+                                    </label>
+                                ))}
                             </div>
-                            <textarea
-                                value={body}
-                                onChange={(e) => setBody(e.target.value)}
-                                placeholder='{\n  "key": "value"\n}'
-                                className="w-full min-h-[160px] p-4 border border-slate-200 rounded-xl font-mono text-sm focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50"
-                            />
+
+                            {/* Conditional Editor Render */}
+                            <div className="flex-1 min-h-0 flex flex-col justify-stretch">
+                                {bodyType === 'none' && (
+                                    <div className="flex flex-col items-center justify-center p-8 bg-slate-50/50 border border-slate-200 border-dashed rounded-2xl text-center flex-1 space-y-2">
+                                        <Terminal size={32} className="text-slate-300 stroke-[1.5]" />
+                                        <p className="text-slate-400 text-xs font-mono">This request does not send a body payload</p>
+                                    </div>
+                                )}
+
+                                {bodyType === 'json' && (
+                                    <JSONCodeEditor 
+                                        value={body}
+                                        onChange={setBody}
+                                        placeholder=""
+                                        rows={6}
+                                    />
+                                )}
+
+                                {bodyType === 'text' && (
+                                    <textarea
+                                        value={body}
+                                        onChange={(e) => setBody(e.target.value)}
+                                        placeholder="Enter plain text payload..."
+                                        rows={6}
+                                        className="w-full p-4 border border-slate-200 rounded-xl font-mono text-xs focus:outline-none focus:border-blue-500 text-slate-800 bg-slate-50/50 min-h-[140px] resize-none"
+                                    />
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -532,22 +657,44 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ endpoint, projectId 
                             </div>
                         )}
                     </div>
-                    {activeResponse && !isExecuting && (
-                        <div className="flex items-center space-x-4 text-xs font-bold">
-                            <div className="flex items-center space-x-1.5">
-                                <span className="text-slate-400 uppercase font-mono">Status:</span>
-                                <span className={`px-2 py-0.5 rounded ${
-                                    activeResponse.status === 'UP' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
-                                }`}>
-                                    {activeResponse.statusCode || 'ERROR'}
-                                </span>
+                    <div className="flex items-center space-x-4">
+                        {activeResponse && !isExecuting && (
+                            <div className="flex items-center space-x-4 text-xs font-bold shrink-0">
+                                <div className="flex items-center space-x-1.5">
+                                    <span className="text-slate-400 uppercase font-mono">Status:</span>
+                                    <span className={`px-2 py-0.5 rounded ${
+                                        activeResponse.status === 'UP' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+                                    }`}>
+                                        {activeResponse.statusCode || 'ERROR'}
+                                    </span>
+                                </div>
+                                <div className="flex items-center space-x-1.5">
+                                    <span className="text-slate-400 uppercase font-mono">Time:</span>
+                                    <span className="text-slate-700">{activeResponse.responseTime} ms</span>
+                                </div>
                             </div>
-                            <div className="flex items-center space-x-1.5">
-                                <span className="text-slate-400 uppercase font-mono">Time:</span>
-                                <span className="text-slate-700">{activeResponse.responseTime} ms</span>
-                            </div>
-                        </div>
-                    )}
+                        )}
+
+                        {activeMonitor ? (
+                            <button
+                                onClick={() => navigate(`/monitors/${endpoint.id}`)}
+                                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center space-x-1 transition-all cursor-pointer shadow-sm"
+                            >
+                                <Activity size={12} className="stroke-[2.5]" />
+                                <span>Monitor Logs</span>
+                            </button>
+                        ) : (
+                            <button
+                                disabled={activeResponse?.statusCode === 401}
+                                onClick={() => setIsScheduleModalOpen(true)}
+                                className="px-3 py-1.5 bg-white border border-slate-200 hover:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center space-x-1 transition-all cursor-pointer shadow-sm"
+                                title={activeResponse?.statusCode === 401 ? "Cannot schedule: Last test returned 401 Unauthorized" : "Configure uptime check schedule"}
+                            >
+                                <Clock size={12} className="stroke-[2.5]" />
+                                <span>Schedule</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div className="p-4 flex-1 overflow-y-auto min-h-0 flex flex-col justify-stretch">
@@ -742,6 +889,16 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ endpoint, projectId 
                                 }}
                                 className="space-y-4"
                             >
+                                {authType === 'cookie' && (
+                                    <div className="p-3.5 bg-amber-50 border border-amber-250 text-amber-900 rounded-xl text-xs space-y-1">
+                                        <p className="font-bold flex items-center space-x-1">
+                                            <span>⚠️ Cookie Session Warning</span>
+                                        </p>
+                                        <p className="leading-relaxed text-[11px] text-amber-800">
+                                            This background monitor uses the active session cookies stored in PingLoop at this moment. The monitor will stop working when these cookies expire. To prevent checks from failing, configure <strong>Auto-Login Credentials</strong> in your Auth tab to handle self-healing refreshes.
+                                        </p>
+                                    </div>
+                                )}
                                 <div className="space-y-1">
                                     <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider font-mono">
                                         Ping Interval

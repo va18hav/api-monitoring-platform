@@ -23,6 +23,23 @@ jest.mock('../lib/queue.js', () => ({
     }
 }));
 
+jest.mock('db', () => ({
+    prisma: {
+        monitor: {
+            findUnique: jest.fn()
+        }
+    }
+}));
+
+jest.mock('../lib/redis.js', () => ({
+    redis: {
+        get: jest.fn(),
+        set: jest.fn(),
+        ttl: jest.fn(),
+        del: jest.fn()
+    }
+}));
+
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
 global.fetch = mockFetch;
 
@@ -94,7 +111,8 @@ describe('Worker Execution Service - Uptime Health Checks', () => {
             status: 'UP',
             responseBody: '{"status":"ok"}',
             responseHeaders: { 'content-type': 'application/json' },
-            error: null
+            error: null,
+            cookiesRefreshed: false
         });
 
         expect(monitorRepo.updateMonitorStatus).toHaveBeenCalledWith('monitor-xyz', 'UP');
@@ -121,7 +139,8 @@ describe('Worker Execution Service - Uptime Health Checks', () => {
             status: 'DOWN',
             responseBody: 'Service Unavailable',
             responseHeaders: {},
-            error: 'HTTP Error Status: 503'
+            error: 'HTTP Error Status: 503',
+            cookiesRefreshed: false
         });
 
         expect(monitorRepo.updateMonitorStatus).toHaveBeenCalledWith('monitor-xyz', 'DOWN');
@@ -148,7 +167,8 @@ describe('Worker Execution Service - Uptime Health Checks', () => {
             status: 'DOWN',
             responseBody: null,
             responseHeaders: null,
-            error: 'The user aborted a request.'
+            error: 'AbortError: The user aborted a request.',
+            cookiesRefreshed: false
         });
 
         expect(monitorRepo.updateMonitorStatus).toHaveBeenCalledWith('monitor-xyz', 'DOWN');

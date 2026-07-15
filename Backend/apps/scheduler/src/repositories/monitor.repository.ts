@@ -27,6 +27,9 @@ export const findMonitorById = async (id: string) => {
         include: {
             endpoint: {
                 select: {
+                    id: true,
+                    projectId: true,
+                    auth: true,
                     project: { select: { userId: true } }
                 }
             }

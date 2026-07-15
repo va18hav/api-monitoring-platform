@@ -61,19 +61,19 @@ export const testEndpoint = async (userId: string, endpointId: string) => {
     if (!endpoint) throw new AppError(404, 'Endpoint not found');
     if (endpoint.project.userId !== userId) throw new AppError(403, 'Forbidden');
 
-    const job = await jobQueue.add('ping_endpoint', { 
-        payload: { endpointId, isTest: true },
-        userId
-    }, {
-        removeOnComplete: true,
-        removeOnFail: true,
-    });
-
     try {
+        const job = await jobQueue.add('ping_endpoint', { 
+            payload: { endpointId, isTest: true },
+            userId
+        }, {
+            removeOnComplete: true,
+            removeOnFail: true,
+        });
+
         const result = await job.waitUntilFinished(queueEvents);
         return result;
     } catch (err) {
-        throw new AppError(500, `Failed to execute test ping: ${err instanceof Error ? err.message : String(err)}`);
+        throw new AppError(503, 'Uptime queue service is temporarily offline. Please try again later.');
     }
 };
 

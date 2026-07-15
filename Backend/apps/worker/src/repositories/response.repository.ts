@@ -9,6 +9,7 @@ export const createResponse = async (data: {
     responseBody?: string | null;
     responseHeaders?: any;
     error?: string | null;
+    cookiesRefreshed?: boolean;
 }) => {
     return await prisma.response.create({
         data: {

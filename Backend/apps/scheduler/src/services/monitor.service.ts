@@ -1,6 +1,8 @@
 import { ScheduleJobInput } from "../types/job.types.js";
 import { jobQueue } from '../lib/queue.js';
 import { prisma } from 'db';
+import { redis } from '../lib/redis.js';
+import { logger } from 'shared';
 
 export const addScheduledJob = async (data: ScheduleJobInput) => {
     const repeatOpts = getRepeatOpts(data);
@@ -102,6 +104,23 @@ export const createMonitor = async (userId: string, data: { endpointId: string; 
 
     const monitor = await monitorRepo.createMonitor(data);
 
+    // Copy active workspace session cookies to monitor session store aligning TTL
+    const userCookiesKey = `pingloop:session:user:${userId}:project:${endpoint.projectId}`;
+    const monitorCookiesKey = `pingloop:session:monitor:${endpoint.id}`;
+    try {
+        if (redis.status === 'ready') {
+            const ttl = await redis.ttl(userCookiesKey);
+            if (ttl > 0) {
+                const userCookies = await redis.get(userCookiesKey);
+                if (userCookies) {
+                    await redis.set(monitorCookiesKey, userCookies, 'EX', ttl);
+                }
+            }
+        }
+    } catch (err) {
+        logger.warn({ err }, `Failed to copy initial cookies for monitor of endpoint ${endpoint.id}.`);
+    }
+
     const scheduledJob = await addScheduledJob({
         type: 'ping_endpoint',
         payload: { endpointId: endpoint.id, monitorId: monitor.id },
@@ -129,4 +148,102 @@ export const deleteMonitor = async (userId: string, monitorId: string) => {
     }
 
     await monitorRepo.deleteMonitor(monitorId);
+};
+
+export const getMonitorAuthStatus = async (userId: string, monitorId: string) => {
+    const monitor = await monitorRepo.findMonitorById(monitorId);
+    if (!monitor) throw new AppError(404, 'Monitor not found');
+    if (monitor.endpoint.project.userId !== userId) throw new AppError(403, 'Forbidden');
+
+    const endpoint = monitor.endpoint;
+    const auth = endpoint.auth as any;
+    const isCookieAuth = auth && auth.type === 'cookie';
+
+    if (!isCookieAuth) {
+        return { status: 'none', ttl: 0, interval: monitor.interval };
+    }
+
+    const monitorCookiesKey = `pingloop:session:monitor:${endpoint.id}`;
+    try {
+        if (redis.status !== 'ready') {
+            return { status: 'none', ttl: 0, interval: monitor.interval };
+        }
+        const ttl = await redis.ttl(monitorCookiesKey);
+        if (ttl <= 0) {
+            return { status: 'expired', ttl: 0, interval: monitor.interval };
+        }
+        
+        // expiring if TTL is less than double interval
+        const threshold = monitor.interval * 60 * 2;
+        if (ttl < threshold) {
+            return { status: 'expiring', ttl, interval: monitor.interval };
+        }
+        return { status: 'valid', ttl, interval: monitor.interval };
+    } catch (err) {
+        logger.warn({ err }, `Failed to check cookie status for monitor ${monitorId}`);
+        return { status: 'expired', ttl: 0, interval: monitor.interval };
+    }
+};
+
+export const syncMonitorSession = async (userId: string, monitorId: string) => {
+    const monitor = await monitorRepo.findMonitorById(monitorId);
+    if (!monitor) throw new AppError(404, 'Monitor not found');
+    if (monitor.endpoint.project.userId !== userId) throw new AppError(403, 'Forbidden');
+
+    const endpoint = monitor.endpoint;
+    const userCookiesKey = `pingloop:session:user:${userId}:project:${endpoint.projectId}`;
+    const monitorCookiesKey = `pingloop:session:monitor:${endpoint.id}`;
+
+    try {
+        if (redis.status !== 'ready') {
+            throw new AppError(503, 'Redis cache offline');
+        }
+        const ttl = await redis.ttl(userCookiesKey);
+        if (ttl <= 0) {
+            throw new AppError(400, 'No active workspace session found. Please run a successful request first.');
+        }
+        const userCookies = await redis.get(userCookiesKey);
+        if (!userCookies) {
+            throw new AppError(400, 'Workspace session cookies are empty. Please run a successful request first.');
+        }
+        await redis.set(monitorCookiesKey, userCookies, 'EX', ttl);
+    } catch (err) {
+        if (err instanceof AppError) throw err;
+        logger.warn({ err }, `Failed to sync session for monitor ${monitorId}`);
+        throw new AppError(500, 'Failed to sync session');
+    }
+};
+
+export const updateMonitor = async (userId: string, monitorId: string, interval: number) => {
+    const monitor = await monitorRepo.findMonitorById(monitorId);
+    if (!monitor) throw new AppError(404, 'Monitor not found');
+    if (monitor.endpoint.project.userId !== userId) throw new AppError(403, 'Forbidden');
+
+    // Remove old repeatable job schedule
+    if (monitor.repeatJobKey) {
+        await removeScheduledJob(monitor.repeatJobKey);
+    }
+
+    // Add new repeatable job schedule
+    const scheduledJob = await addScheduledJob({
+        type: 'ping_endpoint',
+        payload: { endpointId: monitor.endpointId, monitorId: monitor.id },
+        schedule: 'every-x-minutes',
+        minutes: interval,
+        userId
+    });
+
+    let repeatKey: string | null = null;
+    if (scheduledJob && scheduledJob.repeatJobKey) {
+        repeatKey = scheduledJob.repeatJobKey;
+    }
+
+    // Update interval and BullMQ repeat key in DB
+    return await prisma.monitor.update({
+        where: { id: monitorId },
+        data: {
+            interval,
+            repeatJobKey: repeatKey
+        }
+    });
 };
