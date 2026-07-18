@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { LandingPage } from './features/landing/pages/LandingPage';
 import { LoginPage } from './features/auth/pages/LoginPage';
 import { RegisterPage } from './features/auth/pages/RegisterPage';
 import { ForgotPasswordPage } from './features/auth/pages/ForgotPasswordPage';
@@ -20,6 +21,9 @@ export default function App() {
             <Toaster position="top-right" richColors />
 
             <Routes>
+                {/* Public Landing Page */}
+                <Route path="/" element={<LandingPage />} />
+
                 {/* Public Auth Routes */}
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
@@ -35,7 +39,6 @@ export default function App() {
                         <Route path="/projects/:id" element={<ProjectDetailPage />} />
                         <Route path="/monitors/:id" element={<MonitorDetailPage />} />
                         <Route path="/settings" element={<SettingsPage />} />
-                        <Route path="/" element={<Navigate to="/dashboard" replace />} />
                     </Route>
                 </Route>
 
