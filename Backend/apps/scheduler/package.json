@@ -25,6 +25,7 @@
         "ioredis": "^5.4.1",
         "jsonwebtoken": "^9.0.2",
         "rate-limit-redis": "^5.0.0",
+        "resend": "^6.17.2",
         "shared": "*",
         "zod": "^3.23.8"
     },

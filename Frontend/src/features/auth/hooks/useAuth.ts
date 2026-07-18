@@ -20,7 +20,7 @@ export const useLogin = () => {
             // Populate the React Query session cache with the authenticated user data
             queryClient.setQueryData(['session'], { success: true, data: data.data });
 
-            toast.success('Welcome to PingLoop!');
+            toast.success('Welcome to PingDeck!');
             navigate('/dashboard');
         },
         onError: (err: any) => {
@@ -45,7 +45,7 @@ export const useRegister = () => {
             // Populate the React Query session cache with the registered user data
             queryClient.setQueryData(['session'], { success: true, data: data.data });
 
-            toast.success('Registration successful! Welcome to PingLoop.');
+            toast.success('Registration successful! Welcome to PingDeck.');
             navigate('/dashboard');
         },
         onError: (err: any) => {
@@ -100,4 +100,37 @@ export const useVerifySession = () => {
     }, [query.isSuccess, query.isError, query.data, setUser, setLoading]);
 
     return query;
+};
+
+export const useSendOtp = () => {
+    return useMutation({
+        mutationFn: authService.sendOtp,
+        onSuccess: (data) => {
+            toast.success(data.message || 'Verification code sent to your email!');
+        },
+        onError: (err: any) => {
+            const message = err.response?.data?.message || 'Failed to send verification code';
+            toast.error(message);
+        }
+    });
+};
+
+export const useVerifyOtp = () => {
+    const { setUser } = useAuthStore();
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: authService.verifyOtp,
+        onSuccess: (data) => {
+            setUser(data.data);
+            queryClient.setQueryData(['session'], { success: true, data: data.data });
+            toast.success('Email verified successfully! Welcome.');
+            navigate('/dashboard');
+        },
+        onError: (err: any) => {
+            const message = err.response?.data?.message || 'Verification failed';
+            toast.error(message);
+        }
+    });
 };

@@ -14,7 +14,7 @@ export const RegisterPage: React.FC = () => {
                     </div>
                     <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">Create Account</h2>
                     <p className="text-sm text-slate-500">
-                        Join PingLoop to monitor your endpoints
+                        Join PingDeck to monitor your endpoints
                     </p>
                 </div>
 

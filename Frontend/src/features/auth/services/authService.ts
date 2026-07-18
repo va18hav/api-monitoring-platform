@@ -20,5 +20,15 @@ export const authService = {
     getMe: async (): Promise<VerifySessionResponse> => {
         const res = await api.get<VerifySessionResponse>('/auth/me');
         return res.data;
+    },
+
+    sendOtp: async (): Promise<{ success: boolean; message: string }> => {
+        const res = await api.post<{ success: boolean; message: string }>('/auth/send-otp');
+        return res.data;
+    },
+
+    verifyOtp: async (code: string): Promise<AuthResponse> => {
+        const res = await api.post<AuthResponse>('/auth/verify-otp', { code });
+        return res.data;
     }
 };

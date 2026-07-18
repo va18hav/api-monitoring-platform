@@ -113,3 +113,9 @@ export const createMonitorSchema = z.object({
 });
 
 export type CreateMonitorInput = z.infer<typeof createMonitorSchema>;
+
+export const verifyOtpSchema = z.object({
+  code: z.string().length(4, 'Verification code must be exactly 4 digits'),
+});
+
+export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;

@@ -8,6 +8,7 @@ import { DashboardPage } from './features/dashboard/pages/DashboardPage';
 import { ProjectsPage } from './features/projects/pages/ProjectsPage';
 import { ProjectDetailPage } from './features/projects/pages/ProjectDetailPage';
 import { MonitorDetailPage } from './features/monitor/pages/MonitorDetailPage';
+import { VerifyEmailPage } from './features/auth/pages/VerifyEmailPage';
 
 export default function App() {
     return (
@@ -22,6 +23,7 @@ export default function App() {
 
                 {/* Secured Private Dashboard Layout */}
                 <Route element={<ProtectedRoute />}>
+                    <Route path="/verify-email" element={<VerifyEmailPage />} />
                     <Route element={<AppLayout />}>
                         <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/projects" element={<ProjectsPage />} />

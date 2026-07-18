@@ -99,7 +99,7 @@ export const Sidebar: React.FC = () => {
                     className="flex items-center space-x-2.5 text-blue-600 font-extrabold text-xl font-mono cursor-pointer hover:opacity-85 transition-opacity"
                 >
                     <Activity size={24} className="stroke-[2.5]" />
-                    <span>PingLoop</span>
+                    <span>PingDeck</span>
                 </div>
             </div>
 

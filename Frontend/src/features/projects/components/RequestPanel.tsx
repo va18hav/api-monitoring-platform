@@ -921,7 +921,7 @@ export const RequestPanel: React.FC<RequestPanelProps> = ({ endpoint, projectId 
                                             <span>⚠️ Cookie Session Warning</span>
                                         </p>
                                         <p className="leading-relaxed text-[11px] text-amber-800">
-                                            This background monitor uses the active session cookies stored in PingLoop at this moment. The monitor will stop working when these cookies expire. To prevent checks from failing, configure <strong>Auto-Login Credentials</strong> in your Auth tab to handle self-healing refreshes.
+                                            This background monitor uses the active session cookies stored in PingDeck at this moment. The monitor will stop working when these cookies expire. To prevent checks from failing, configure <strong>Auto-Login Credentials</strong> in your Auth tab to handle self-healing refreshes.
                                         </p>
                                     </div>
                                 )}

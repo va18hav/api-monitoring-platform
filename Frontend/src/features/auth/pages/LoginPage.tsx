@@ -12,7 +12,7 @@ export const LoginPage: React.FC = () => {
                     <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-50 text-blue-600 rounded-xl mb-2">
                         <Activity size={28} className="stroke-[2.5]" />
                     </div>
-                    <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">PingLoop Access</h2>
+                    <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">PingDeck</h2>
                     <p className="text-sm text-slate-500">
                         Sign in to monitor your distributed systems
                     </p>
