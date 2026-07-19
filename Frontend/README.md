@@ -1,32 +1,63 @@
-# React + TypeScript + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React application for PingDeck. Built with Vite, TypeScript, and Tailwind CSS v4.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Prerequisites
 
-## React Compiler
+- Node.js v18+
+- Backend services running (see `../Backend/README.md`)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the Oxlint configuration
+## Local setup
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+**1. Install dependencies**
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+**2. Set up environment**
+
+Create a `.env` file in this directory:
+
+```
+VITE_API_URL=http://localhost:3000
+VITE_GOOGLE_CLIENT_ID=your-google-client-id
+```
+
+**3. Start the dev server**
+
+```bash
+npm run dev
+```
+
+Opens at `http://localhost:5173`.
+
+---
+
+## Project structure
+
+```
+src/
+  features/
+    auth/         Login, register, email verification, Google OAuth
+    dashboard/    Main layout after login
+    projects/     Project list and sidebar navigation
+    monitor/      Endpoint config, latency charts, response history
+    landing/      Public landing page
+  shared/         Shared UI components, API client (axios), layout
+  store/          Zustand auth store
+```
+
+---
+
+## Build
+
+```bash
+npm run build
+```
+
+Output goes to `dist/`. Deploy to Vercel or any static host.
