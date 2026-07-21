@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity } from 'lucide-react';
 import { RegisterForm } from '../components/RegisterForm';
 import { useGoogleLogin } from '../hooks/useAuth';
 
@@ -45,7 +44,7 @@ export const RegisterPage: React.FC = () => {
                 {/* Logo and title */}
                 <div className="text-center space-y-2">
                     <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-50 text-blue-600 rounded-xl mb-2">
-                        <Activity size={28} className="stroke-[2.5]" />
+                        <img src="/logo.png" alt="PingDeck" className="w-7 h-7 object-contain" />
                     </div>
                     <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">Create Account</h2>
                     <p className="text-sm text-slate-500">

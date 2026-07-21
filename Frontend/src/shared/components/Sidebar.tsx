@@ -4,7 +4,6 @@ import {
     LayoutDashboard, 
     Folder as FolderIcon, 
     LogOut, 
-    Activity, 
     ChevronRight, 
     ChevronDown, 
     Plus, 
@@ -122,7 +121,7 @@ export const Sidebar: React.FC<{ isOpen?: boolean; onClose?: () => void }> = ({ 
                         }}
                         className="flex items-center space-x-2.5 text-blue-600 font-extrabold text-xl font-mono cursor-pointer hover:opacity-85 transition-opacity"
                     >
-                        <Activity size={24} className="stroke-[2.5]" />
+                        <img src="/logo.png" alt="PingDeck" className="w-6 h-6 object-contain" />
                         <span>PingDeck</span>
                     </div>
                 </div>

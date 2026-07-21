@@ -1,52 +1,52 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity } from 'lucide-react';
+
 import { useAuthStore } from '../../../store/authStore';
 
 export const Navbar: React.FC = () => {
     const navigate = useNavigate();
     const { isAuthenticated, isLoading } = useAuthStore();
-    
-    // Read session hint for synchronous initial render safety
     const hasHint = localStorage.getItem('pingdeck_session_active') === 'true';
-    const showDashboardButton = isAuthenticated || (isLoading && hasHint);
+    const showDash = isAuthenticated || (isLoading && hasHint);
 
     return (
-        <nav className="fixed top-0 inset-x-0 h-16 bg-white/70 backdrop-blur-md border-b border-slate-200/60 z-50 flex items-center justify-between px-6 sm:px-12 select-none shadow-xs">
-            <div 
-                onClick={() => navigate('/')}
-                className="flex items-center space-x-2.5 text-blue-600 font-extrabold text-xl font-mono cursor-pointer hover:opacity-90 transition-opacity"
-            >
-                <Activity size={24} className="stroke-[2.5]" />
-                <span>PingDeck</span>
-            </div>
+        <nav className="fixed top-0 inset-x-0 z-50 h-14 bg-white/90 backdrop-blur-md border-b border-slate-200/80 flex items-center px-6 lg:px-12">
+            <div className="max-w-6xl mx-auto w-full flex items-center justify-between">
+                <button
+                    onClick={() => navigate('/')}
+                    className="flex items-center space-x-2 font-bold font-mono text-slate-900 hover:text-blue-600 transition-colors duration-150 cursor-pointer"
+                >
+                    <img src="/logo.png" alt="PingDeck" className="w-5 h-5 object-contain" />
+                    <span>PingDeck</span>
+                </button>
 
-            <div className="flex items-center space-x-2 sm:space-x-4">
-                {isLoading && !hasHint ? (
-                    <div className="w-5 h-5 border-2 border-slate-200 border-t-blue-600 rounded-full animate-spin"></div>
-                ) : showDashboardButton ? (
-                    <button
-                        onClick={() => navigate('/dashboard')}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-100 hover:shadow-lg cursor-pointer"
-                    >
-                        Go to Dashboard
-                    </button>
-                ) : (
-                    <>
+                <div className="flex items-center gap-2">
+                    {isLoading && !hasHint ? (
+                        <div className="w-4 h-4 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
+                    ) : showDash ? (
                         <button
-                            onClick={() => navigate('/login')}
-                            className="px-4 py-2 text-slate-600 hover:text-slate-900 text-xs font-bold transition-colors cursor-pointer"
+                            onClick={() => navigate('/dashboard')}
+                            className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors duration-150 cursor-pointer"
                         >
-                            Sign In
+                            Dashboard
                         </button>
-                        <button
-                            onClick={() => navigate('/register')}
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-100 hover:shadow-lg cursor-pointer"
-                        >
-                            Get Started
-                        </button>
-                    </>
-                )}
+                    ) : (
+                        <>
+                            <button
+                                onClick={() => navigate('/login')}
+                                className="px-3.5 py-1.5 text-slate-500 hover:text-slate-800 text-xs font-semibold transition-colors duration-150 cursor-pointer"
+                            >
+                                Sign in
+                            </button>
+                            <button
+                                onClick={() => navigate('/register')}
+                                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors duration-150 cursor-pointer"
+                            >
+                                Get started
+                            </button>
+                        </>
+                    )}
+                </div>
             </div>
         </nav>
     );

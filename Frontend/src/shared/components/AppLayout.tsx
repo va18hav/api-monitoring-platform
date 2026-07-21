@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
-import { Menu, Activity } from 'lucide-react';
+import { Menu } from 'lucide-react';
 
 export const AppLayout: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -15,7 +15,7 @@ export const AppLayout: React.FC = () => {
                     onClick={() => navigate('/dashboard')}
                     className="flex items-center space-x-2.5 text-blue-600 font-extrabold text-lg font-mono cursor-pointer"
                 >
-                    <Activity size={20} className="stroke-[2.5]" />
+                    <img src="/logo.png" alt="PingDeck" className="w-5 h-5 object-contain" />
                     <span>PingDeck</span>
                 </div>
                 <button 

@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useVerifySession } from '../../features/auth/hooks/useAuth';
-import { Activity } from 'lucide-react';
+
 
 export const ProtectedRoute: React.FC = () => {
     const { isAuthenticated, user, isLoading } = useAuthStore();
@@ -14,7 +14,7 @@ export const ProtectedRoute: React.FC = () => {
     if (isLoading) {
         return (
             <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center space-y-4">
-                <Activity size={48} className="text-blue-600 animate-bounce" />
+                <img src="/logo.png" alt="PingDeck" className="w-12 h-12 object-contain animate-pulse" />
                 <div className="text-slate-500 font-mono text-sm font-semibold tracking-widest animate-pulse">
                     VERIFYING PINGDECK SECURE ROUTE...
                 </div>
